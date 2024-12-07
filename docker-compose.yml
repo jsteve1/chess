@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "443:443"
+    volumes:
+      - ./certs:/app/certs:ro
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - SSL_CERT=/app/certs/cert.crt
+      - SSL_KEY=/app/certs/cert.key
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - chess_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 500M
+
+  redis:
+    image: redis:alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - chess_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 200M
+
+networks:
+  chess_network:
+    driver: bridge
+
+volumes:
+  redis_data: 
