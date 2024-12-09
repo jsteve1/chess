@@ -1,10 +1,24 @@
+/**
+ * GameInfo Component
+ * Displays game status information including:
+ * - Player timers
+ * - Captured pieces
+ * - Turn indicator
+ * - Player roles
+ */
+
 <script lang="ts">
-    export let timeWhite: number;
-    export let timeBlack: number;
-    export let capturedPieces: { white: string[]; black: string[] };
-    export let currentTurn: 'w' | 'b';
-    export let gameRole: 'white' | 'black' | 'spectator' | null = null;
+    // Component props
+    export let timeWhite: number;                                    // Remaining time for white player
+    export let timeBlack: number;                                    // Remaining time for black player
+    export let capturedPieces: { white: string[]; black: string[] }; // Pieces captured by each side
+    export let currentTurn: 'w' | 'b';                              // Current player's turn
+    export let gameRole: 'white' | 'black' | 'spectator' | null = null;  // Player's role in the game
     
+    /**
+     * Formats milliseconds into MM:SS display
+     * @param ms - Time in milliseconds
+     */
     function formatTime(ms: number): string {
         if (!ms) return '10:00';
         const minutes = Math.floor(ms / 60000);
@@ -12,6 +26,10 @@
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     }
 
+    /**
+     * Converts piece letter to Unicode symbol
+     * @param piece - Piece letter (e.g., 'P' for white pawn)
+     */
     function getPieceSymbol(piece: string): string {
         const symbols: { [key: string]: string } = {
             'P': '♙', 'N': '♘', 'B': '♗', 'R': '♖', 'Q': '♕', 'K': '♔',
@@ -20,31 +38,32 @@
         return symbols[piece] || piece;
     }
 
+    // Reactive declaration for turn indicator
     $: isYourTurn = (currentTurn === 'w' && gameRole === 'white') || 
                     (currentTurn === 'b' && gameRole === 'black');
 </script>
 
 <div class="game-info-panel">
+    <!-- Timer and player info for black player -->
     <div class="timer-container">
         <div class="player-info black">
-            <div class="time-display {currentTurn === 'b' ? 'active' : ''}" class:your-turn={currentTurn === 'b' && gameRole === 'black'}>
-                {formatTime(timeBlack)}
-                {#if currentTurn === 'b' && gameRole === 'black'}
-                    <span class="turn-indicator">YOUR TURN</span>
-                {/if}
-            </div>
-        </div>
-        
-        <div class="player-info white">
-            <div class="time-display {currentTurn === 'w' ? 'active' : ''}" class:your-turn={currentTurn === 'w' && gameRole === 'white'}>
-                {formatTime(timeWhite)}
-                {#if currentTurn === 'w' && gameRole === 'white'}
-                    <span class="turn-indicator">YOUR TURN</span>
-                {/if}
-            </div>
+            <div class="player-name">Black</div>
+            <div class="timer">{formatTime(timeBlack)}</div>
+            {#if currentTurn === 'b'}
+                <div class="turn-indicator">
+                    {#if gameRole === 'black'}
+                        Your turn
+                    {:else if gameRole === 'white'}
+                        Opponent's turn
+                    {:else}
+                        Black's turn
+                    {/if}
+                </div>
+            {/if}
         </div>
     </div>
 
+    <!-- Captured pieces display -->
     <div class="captured-pieces-container">
         <div class="captured-pieces black">
             {#each capturedPieces.black as piece}
@@ -57,53 +76,75 @@
             {/each}
         </div>
     </div>
+
+    <!-- Timer and player info for white player -->
+    <div class="timer-container">
+        <div class="player-info white">
+            <div class="player-name">White</div>
+            <div class="timer">{formatTime(timeWhite)}</div>
+            {#if currentTurn === 'w'}
+                <div class="turn-indicator">
+                    {#if gameRole === 'white'}
+                        Your turn
+                    {:else if gameRole === 'black'}
+                        Opponent's turn
+                    {:else}
+                        White's turn
+                    {/if}
+                </div>
+            {/if}
+        </div>
+    </div>
 </div>
 
 <style>
+    /* Panel layout */
     .game-info-panel {
         width: 100%;
-        max-width: min(80vw, 600px);
-        margin: 0 auto;
+        max-width: 600px;
         display: flex;
         flex-direction: column;
         gap: 1rem;
+        padding: 1rem;
         background: var(--color-bg-panel);
         border-radius: 8px;
-        padding: 1rem;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        position: relative;
     }
-    
+
+    /* Timer container */
     .timer-container {
         display: flex;
         justify-content: space-between;
+        align-items: center;
         gap: 1rem;
     }
 
+    /* Player info section */
     .player-info {
         flex: 1;
-    }
-    
-    .time-display {
-        font-family: var(--font-mono);
-        font-size: 1.5rem;
-        font-weight: bold;
-        padding: 0.5rem 1rem;
-        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 1rem;
+        background: var(--color-bg-player);
         border-radius: 4px;
-        background: var(--color-bg-time);
-        transition: all 0.3s;
         position: relative;
     }
-    
-    .time-display.active {
-        background: var(--color-bg-time-active);
-        color: var(--color-text-time-active);
+
+    .player-name {
+        font-weight: bold;
+        color: var(--color-text);
     }
 
-    .time-display.your-turn {
-        box-shadow: 0 0 0 2px #4CAF50;
+    .timer {
+        font-family: monospace;
+        font-size: 1.5rem;
+        color: var(--color-text-timer);
     }
 
+    /* Turn indicator */
     .turn-indicator {
         position: absolute;
         top: -1.5rem;
@@ -115,6 +156,7 @@
         white-space: nowrap;
     }
     
+    /* Captured pieces display */
     .captured-pieces-container {
         display: flex;
         justify-content: space-between;
@@ -137,6 +179,7 @@
         line-height: 1;
     }
 
+    /* Piece colors */
     .black .piece {
         color: var(--color-piece-black);
     }

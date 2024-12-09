@@ -1,26 +1,40 @@
+/**
+ * ChessBoard Component
+ * Interactive chess board with move validation and piece movement
+ * Supports multiple player roles and game states
+ */
+
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { Chess } from 'chess.js';
     import type { Square } from 'chess.js';
 
-    export let fen: string;
-    export let gameRole: 'white' | 'black' | 'spectator' | null = null;
-    export let lastMove: { from: string; to: string } | null = null;
-    export let validMoves: string[] = [];
-    export let timeWhite: number;
-    export let timeBlack: number;
+    // Component props
+    export let fen: string;                                         // Current board position in FEN notation
+    export let gameRole: 'white' | 'black' | 'spectator' | null = null;  // Player's role in the game
+    export let lastMove: { from: string; to: string } | null = null;     // Last move made in the game
+    export let validMoves: string[] = [];                                // Valid moves for selected piece
+    export let timeWhite: number;                                        // Remaining time for white player
+    export let timeBlack: number;                                        // Remaining time for black player
 
     const dispatch = createEventDispatcher();
     let selectedSquare: Square | null = null;
     let board: Chess;
 
+    // Initialize chess.js instance when FEN changes
     $: {
         board = new Chess(fen);
     }
 
+    // Board layout constants
     const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
     const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
 
+    /**
+     * Converts chess piece to Unicode symbol
+     * @param piece - Chess piece object with type and color
+     * @returns Unicode symbol for the piece
+     */
     function getPieceSymbol(piece: { type: string, color: string }): string {
         const symbols: { [key: string]: string } = {
             'p': piece.color === 'w' ? '♙' : '♟',
@@ -33,6 +47,13 @@
         return symbols[piece.type] || '';
     }
 
+    /**
+     * Handles square click events
+     * Manages piece selection and move execution
+     * Validates player's turn and role
+     * 
+     * @param square - Clicked square coordinate (e.g., 'e4')
+     */
     function handleSquareClick(square: string) {
         if (!gameRole || gameRole === 'spectator') return;
 
@@ -52,29 +73,51 @@
         }
     }
 
+    /**
+     * Determines square color based on coordinates
+     * @param file - File letter (a-h)
+     * @param rank - Rank number (1-8)
+     * @returns 'light' or 'dark'
+     */
     function getSquareColor(file: string, rank: string): string {
         const fileIndex = files.indexOf(file);
         const rankIndex = ranks.indexOf(rank);
         return (fileIndex + rankIndex) % 2 === 0 ? 'light' : 'dark';
     }
 
+    /**
+     * Checks if a square is a valid move destination
+     * @param square - Square coordinate to check
+     */
     function isValidMove(square: string): boolean {
         return validMoves.includes(square);
     }
 
+    /**
+     * Checks if a move would capture an opponent's piece
+     * @param square - Target square coordinate
+     */
     function isCapturingMove(square: string): boolean {
         const targetPiece = board.get(square as Square);
         const selectedPiece = selectedSquare ? board.get(selectedSquare as Square) : null;
-        return selectedPiece && targetPiece && 
+        return Boolean(selectedPiece && targetPiece && 
                targetPiece.color !== selectedPiece.color && 
-               validMoves.includes(square);
+               validMoves.includes(square));
     }
 
+    /**
+     * Checks if a square was part of the last move
+     * @param square - Square coordinate to check
+     */
     function isLastMove(square: string): boolean {
         if (!lastMove) return false;
         return square === lastMove.from || square === lastMove.to;
     }
 
+    /**
+     * Formats milliseconds into MM:SS display
+     * @param ms - Time in milliseconds
+     */
     function formatTime(ms: number): string {
         const minutes = Math.floor(ms / 60000);
         const seconds = Math.floor((ms % 60000) / 1000);
@@ -127,12 +170,14 @@
 </div>
 
 <style>
+    /* Board container and layout */
     .board-container {
         display: flex;
         flex-direction: column;
         gap: 10px;
     }
 
+    /* Timer styling */
     .timers {
         display: flex;
         justify-content: space-between;
@@ -148,6 +193,7 @@
         font-size: 1.2rem;
     }
 
+    /* Chess board grid */
     .chess-board {
         display: grid;
         grid-template-columns: repeat(8, 1fr);
@@ -158,10 +204,12 @@
         position: relative;
     }
 
+    /* Board orientation for black player */
     .chess-board.flipped {
         transform: rotate(180deg);
     }
 
+    /* Square styling */
     .square {
         display: flex;
         align-items: center;
@@ -172,6 +220,7 @@
         transition: all 0.2s ease;
     }
 
+    /* Square colors */
     .square.light {
         background-color: var(--board-classic-light, #f0d9b5);
     }
@@ -180,6 +229,7 @@
         background-color: var(--board-classic-dark, #b58863);
     }
 
+    /* Square states */
     .square.selected {
         background-color: var(--color-selected, rgba(255, 255, 0, 0.5));
     }
@@ -206,6 +256,7 @@
         background-color: var(--color-last-move, rgba(0, 255, 0, 0.2));
     }
 
+    /* Chess piece styling */
     .piece {
         width: 80%;
         height: 80%;
@@ -216,6 +267,7 @@
         transition: transform 0.3s;
     }
 
+    /* Piece colors with text shadow for visibility */
     .piece.white {
         color: #fff;
         text-shadow: 
@@ -234,6 +286,7 @@
             1px 1px 0 #fff;
     }
 
+    /* Board coordinates */
     .coordinate {
         position: absolute;
         font-size: 0.8rem;
@@ -254,20 +307,5 @@
 
     .square.dark .coordinate {
         color: rgba(255, 255, 255, 0.9);
-    }
-
-    @keyframes breathe {
-        0% { 
-            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
-            border-color: rgba(255, 68, 68, 0.6);
-        }
-        50% { 
-            box-shadow: 0 0 25px rgba(255, 0, 0, 0.6);
-            border-color: rgba(255, 68, 68, 0.9);
-        }
-        100% { 
-            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
-            border-color: rgba(255, 68, 68, 0.6);
-        }
     }
 </style> 

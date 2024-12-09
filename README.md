@@ -1,58 +1,92 @@
-# create-svelte
+# Real-Time Multiplayer Chess
 
-Everything you need to build a Svelte library, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/main/packages/create-svelte).
+# Live at https://chess.bidseek.dev
 
-Read more about creating a library [in the docs](https://svelte.dev/docs/kit/packaging).
+A modern, real-time multiplayer chess application built with SvelteKit, Socket.IO, and Redis. Play chess with friends through shareable game links, featuring real-time moves, game state management, and WebSocket communication.
 
-## Creating a project
+## 🚀 Features
+- Real-time multiplayer gameplay
+- Shareable game links with QR codes
+- Game state persistence with Redis
+- Secure WebSocket connections
+- Mobile-responsive design
+- Time controls for each player
+- Move validation and chess rules enforcement
 
-If you're seeing this, you've probably already done this step. Congrats!
+## 🛠 Tech Stack
+- **Frontend**: SvelteKit, TypeScript
+- **Backend**: Node.js, Express
+- **Real-time**: Socket.IO
+- **State Management**: Redis
+- **Security**: Helmet, Rate Limiting
+- **Deployment**: Docker, HTTPS/SSL
 
-```bash
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
+## 🏗 Architecture
+```
++----------------+     WebSocket     +----------------+     Persist     +----------------+
+|                | <--------------> |                | <------------> |                |
+|  SvelteKit UI  |    Socket.IO     |  Express/Node  |     State      |     Redis      |
+|                |                  |                |                |                |
++----------------+                  +----------------+                +----------------+
 ```
 
-## Developing
+## 🔧 Setup & Development
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/chess-app.git
+   cd chess-app
+   ```
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+4. Start development server:
+   ```bash
+   npm run dev
+   ```
+
+5. For production build:
+   ```bash
+   npm run build
+   npm run start
+   ```
+
+## 🐳 Docker Deployment
 ```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+# Build and run with Docker Compose
+docker compose up -d
 ```
 
-Everything inside `src/lib` is part of your library, everything inside `src/routes` can be used as a showcase or preview app.
-
-## Building
-
-To build your library:
-
-```bash
-npm run package
+## 📁 Project Structure
+```
+chess-app/
+├── src/
+│   ├── lib/           # Shared components and utilities
+│   ├── routes/        # SvelteKit routes and pages
+│   ├── server/        # Backend server code
+│   └── server.ts      # Main server entry point
+├── static/           # Static assets
+├── certs/           # SSL certificates
+└── docker-compose.yml
 ```
 
-To create a production version of your showcase app:
+## 🔐 Security
+- HTTPS/SSL encryption
+- Rate limiting
+- Helmet security headers
+- WebSocket security
+- Input validation
 
-```bash
-npm run build
-```
+## 📝 License
+MIT License - See LICENSE file for details
 
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
-
-## Publishing
-
-Go into the `package.json` and give your package the desired name through the `"name"` option. Also consider adding a `"license"` field and point it to a `LICENSE` file which you can create from a template (one popular option is the [MIT license](https://opensource.org/license/mit/)).
-
-To publish your library to [npm](https://www.npmjs.com):
-
-```bash
-npm publish
-```
+## 🤝 Contributing
+Contributions welcome! Please read CONTRIBUTING.md for guidelines.

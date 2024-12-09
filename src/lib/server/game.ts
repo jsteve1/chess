@@ -1,32 +1,51 @@
+/**
+ * Game Manager for Chess Application
+ * Handles game state management, move validation, and persistence
+ * Uses chess.js for game logic and Redis for state persistence
+ */
+
 import { Chess, type Square } from 'chess.js';
 import type { Socket } from 'socket.io';
 import Redis from 'ioredis';
 
+/**
+ * Represents the complete state of a chess game
+ * Includes game logic, players, spectators, timing, and status
+ */
 interface GameState {
-    game: Chess;
-    white: string | null;
-    black: string | null;
-    spectators: Set<string>;
-    lastMove: { from: string; to: string } | null;
-    startTime: number | null;
-    timeWhite: number;
-    timeBlack: number;
-    status: 'waiting' | 'ready' | 'playing' | 'ended';
-    isPrivate: boolean;
-    passwordHash?: string;
+    game: Chess;                                    // Chess.js instance for game logic
+    white: string | null;                           // Socket ID of white player
+    black: string | null;                           // Socket ID of black player
+    spectators: Set<string>;                        // Set of spectator socket IDs
+    lastMove: { from: string; to: string } | null;  // Last move made in the game
+    startTime: number | null;                       // Timestamp of game start/last move
+    timeWhite: number;                              // Remaining time for white player
+    timeBlack: number;                              // Remaining time for black player
+    status: 'waiting' | 'ready' | 'playing' | 'ended';  // Current game status
+    isPrivate: boolean;                             // Whether game requires password
+    passwordHash?: string;                          // Hashed password for private games
 }
 
+/**
+ * GameManager class
+ * Manages chess games, handles persistence, and enforces game rules
+ * Uses Redis for game state persistence and recovery
+ */
 class GameManager {
     private redis: Redis;
     private games: Map<string, GameState> = new Map();
-    private GAME_EXPIRY = 24 * 60 * 60; // 24 hours in seconds
-    private DEFAULT_TIME = 15 * 60 * 1000; // 15 minutes in ms
+    private GAME_EXPIRY = 24 * 60 * 60;  // 24 hours in seconds
+    private DEFAULT_TIME = 15 * 60 * 1000;  // 15 minutes in ms
 
     constructor() {
         this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
         this.loadGamesFromRedis();
     }
 
+    /**
+     * Loads saved games from Redis on startup
+     * Reconstructs game states with chess.js instances
+     */
     private async loadGamesFromRedis() {
         const keys = await this.redis.keys('game:*');
         for (const key of keys) {
@@ -43,6 +62,13 @@ class GameManager {
         }
     }
 
+    /**
+     * Saves game state to Redis
+     * Serializes game state and sets expiration
+     * 
+     * @param gameId - Unique identifier for the game
+     * @param gameState - Current state of the game
+     */
     async saveGameState(gameId: string, gameState: GameState) {
         const serializedGame = {
             ...gameState,
@@ -52,6 +78,13 @@ class GameManager {
         await this.redis.setex(`game:${gameId}`, this.GAME_EXPIRY, JSON.stringify(serializedGame));
     }
 
+    /**
+     * Creates a new chess game
+     * Initializes game state with default values
+     * 
+     * @param gameId - Unique identifier for the new game
+     * @param initialState - Optional partial state to override defaults
+     */
     async createGame(gameId: string, initialState?: Partial<GameState>): Promise<void> {
         const gameState: GameState = {
             game: new Chess(),
@@ -70,6 +103,16 @@ class GameManager {
         await this.saveGameState(gameId, gameState);
     }
 
+    /**
+     * Handles player joining a game
+     * Assigns roles (white/black/spectator) based on availability
+     * Updates game status when both players are present
+     * 
+     * @param gameId - Game to join
+     * @param playerId - Socket ID of joining player
+     * @param preferredColor - Preferred role for the player
+     * @returns Assigned role or null if join failed
+     */
     async joinGame(
         gameId: string, 
         playerId: string, 
@@ -85,6 +128,7 @@ class GameManager {
         if (gameState.black === playerId) return 'black';
         if (gameState.spectators.has(playerId)) return 'spectator';
 
+        // Assign role based on preference and availability
         if (preferredColor === 'white' && !gameState.white) {
             gameState.white = playerId;
             role = 'white';
@@ -102,6 +146,7 @@ class GameManager {
             role = 'spectator';
         }
 
+        // Start game if both players are present
         if (gameState.white && gameState.black && gameState.status === 'waiting') {
             gameState.status = 'playing';
             gameState.startTime = Date.now();
@@ -111,6 +156,17 @@ class GameManager {
         return role;
     }
 
+    /**
+     * Processes a chess move
+     * Validates move legality and player turn
+     * Updates game state and timing
+     * 
+     * @param gameId - Game being played
+     * @param playerId - Player making the move
+     * @param from - Starting square
+     * @param to - Target square
+     * @returns Whether move was successful
+     */
     async makeMove(gameId: string, playerId: string, from: string, to: string): Promise<boolean> {
         const gameState = this.games.get(gameId);
         if (!gameState) return false;
@@ -118,6 +174,7 @@ class GameManager {
         const isWhite = gameState.white === playerId;
         const isBlack = gameState.black === playerId;
         
+        // Validate game and player state
         if (!gameState.white || !gameState.black) return false;
         if (!isWhite && !isBlack) return false;
         
@@ -137,6 +194,7 @@ class GameManager {
                 gameState.timeBlack -= now - gameState.startTime;
             }
 
+            // Attempt move with automatic queen promotion
             const move = gameState.game.move({ 
                 from: from as Square, 
                 to: to as Square, 
@@ -160,19 +218,37 @@ class GameManager {
         return false;
     }
 
+    /**
+     * Retrieves current game state
+     * @param gameId - Game to retrieve
+     * @returns Game state or null if not found
+     */
     getGameState(gameId: string): GameState | null {
         return this.games.get(gameId) || null;
     }
 
+    /**
+     * Gets current FEN string for game position
+     * @param gameId - Game to get position for
+     * @returns FEN string or null if game not found
+     */
     getFEN(gameId: string): string | null {
         const gameState = this.games.get(gameId);
         return gameState ? gameState.game.fen() : null;
     }
 
+    /**
+     * Checks if game is over
+     * Considers checkmate and time control
+     * 
+     * @param gameId - Game to check
+     * @returns Whether game is over
+     */
     isGameOver(gameId: string): boolean {
         const gameState = this.games.get(gameId);
         if (!gameState) return false;
         
+        // Check time control
         if (gameState.timeWhite <= 0) {
             gameState.status = 'ended';
             return true;
@@ -182,9 +258,17 @@ class GameManager {
             return true;
         }
         
+        // Check game position
         return gameState.game.isGameOver();
     }
 
+    /**
+     * Gets valid moves for a piece
+     * 
+     * @param gameId - Game being played
+     * @param square - Square containing piece to move
+     * @returns Array of valid destination squares
+     */
     getValidMoves(gameId: string, square: string): string[] {
         const gameState = this.games.get(gameId);
         if (!gameState || !gameState.white || !gameState.black) return [];
@@ -201,6 +285,13 @@ class GameManager {
         }
     }
 
+    /**
+     * Gets remaining time for both players
+     * Accounts for current turn's elapsed time
+     * 
+     * @param gameId - Game to check time for
+     * @returns Remaining time for both players
+     */
     getTimeLeft(gameId: string): { white: number; black: number } {
         const gameState = this.games.get(gameId);
         if (!gameState) return { white: this.DEFAULT_TIME, black: this.DEFAULT_TIME };
@@ -213,6 +304,7 @@ class GameManager {
             };
         }
         
+        // Subtract elapsed time from current player's clock
         const currentTurn = gameState.game.turn();
         if (currentTurn === 'w') {
             return {
@@ -228,4 +320,5 @@ class GameManager {
     }
 }
 
+// Export singleton instance
 export const gameManager = new GameManager(); 
