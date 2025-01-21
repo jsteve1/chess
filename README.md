@@ -1,7 +1,5 @@
 # Real-Time Multiplayer Chess
 
-# Live at https://chess.bidseek.dev
-
 A modern, real-time multiplayer chess application built with SvelteKit, Socket.IO, and Redis. Play chess with friends through shareable game links, featuring real-time moves, game state management, and WebSocket communication.
 
 ## 🚀 Features
