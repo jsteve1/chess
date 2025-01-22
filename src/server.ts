@@ -4,18 +4,44 @@
  * Implements security measures and integrates with Socket.IO for real-time gameplay.
  */
 
-import { createServer } from 'http';
+import { createServer as createHttpServer, IncomingMessage, ServerResponse } from 'http';
+import { createServer as createHttpsServer } from 'https';
+import type { ServerOptions } from 'https';
 import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { Server } from 'socket.io';
 import { createSocketServer } from './lib/server/socket.js';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
+import { readFileSync } from 'fs';
 
 // Initialize Express application
 const app = express();
-const server = createServer(app);
+
+// Create HTTPS server with SSL certificates
+const sslOptions: ServerOptions = {
+    key: readFileSync(process.env.SSL_KEY || './certs/cert.key'),
+    cert: readFileSync(process.env.SSL_CERT || './certs/cert.crt'),
+    minVersion: 'TLSv1.2', // Enforce minimum TLS version
+    ciphers: [
+        'ECDHE-ECDSA-AES128-GCM-SHA256',
+        'ECDHE-RSA-AES128-GCM-SHA256',
+        'ECDHE-ECDSA-AES256-GCM-SHA384',
+        'ECDHE-RSA-AES256-GCM-SHA384',
+    ].join(':'), // Use only strong ciphers
+};
+
+const httpsServer = createHttpsServer(sslOptions, app);
+
+// Create HTTP server for redirect
+const httpServer = createHttpServer((req: IncomingMessage, res: ServerResponse) => {
+    res.writeHead(301, { 
+        Location: `https://${req.headers.host}${req.url}` 
+    });
+    res.end();
+});
 
 /**
  * Security Configuration
@@ -28,10 +54,23 @@ app.use(helmet({
             defaultSrc: ["'self'"],
             scriptSrc: ["'self'", "'unsafe-inline'"],  // Allow inline scripts for SvelteKit
             styleSrc: ["'self'", "'unsafe-inline'"],   // Allow inline styles for SvelteKit
-            connectSrc: ["'self'", "ws:", "wss:"]      // Allow WebSocket connections
+            connectSrc: ["'self'", "wss:"]      // Allow secure WebSocket connections only
         }
+    },
+    hsts: {
+        maxAge: 31536000, // 1 year in seconds
+        includeSubDomains: true,
+        preload: true
     }
 }));
+
+// Force HTTPS
+app.use((req: Request, res: Response, next: NextFunction) => {
+    if (!req.secure) {
+        return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+    next();
+});
 
 /**
  * Rate Limiting Configuration
@@ -49,10 +88,11 @@ app.use(limiter);
  * Sets up real-time WebSocket communication with security settings
  * Handles CORS in development and production environments
  */
-const io = new Server(server, {
+const io = new Server(httpsServer, {
     cors: {
-        // Only allow CORS in development
-        origin: process.env.NODE_ENV === 'production' ? false : "http://localhost:5173",
+        origin: process.env.NODE_ENV === 'production' 
+            ? 'https://chess.bidseek.dev'
+            : "http://localhost:5173",
         methods: ["GET", "POST"],
         credentials: true
     },
@@ -85,7 +125,7 @@ if (process.env.NODE_ENV === 'production') {
  * Handles all routes through SvelteKit's server-side rendering
  * Falls back to static index.html in production for client-side routing
  */
-app.use('*', async (req, res) => {
+app.use('*', async (req: Request, res: Response) => {
     try {
         const handler = await import('../build/handler.js');
         handler.handler(req, res, (err?: Error | null) => {
@@ -109,10 +149,16 @@ app.use('*', async (req, res) => {
 
 /**
  * Server Startup
- * Listens on configured port or falls back to 3000
+ * Listens on configured ports for HTTP and HTTPS
  * Logs server status on successful start
  */
-const port = process.env.PORT || 3000;
-server.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
+const httpPort = process.env.HTTP_PORT || 80;
+const httpsPort = process.env.HTTPS_PORT || 443;
+
+httpServer.listen(httpPort, () => {
+    console.log(`HTTP server running on port ${httpPort} (redirecting to HTTPS)`);
+});
+
+httpsServer.listen(httpsPort, () => {
+    console.log(`HTTPS server running on port ${httpsPort}`);
 }); 
