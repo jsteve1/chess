@@ -2,22 +2,25 @@
 
 A modern, real-time multiplayer chess application built with SvelteKit, Socket.IO, and Redis. Play chess with friends through shareable game links, featuring real-time moves, game state management, and WebSocket communication.
 
+🎮 **[Play Now - Live Demo](https://chess.bidseek.dev)** 
+
 ## 🚀 Features
 - Real-time multiplayer gameplay
 - Shareable game links with QR codes
 - Game state persistence with Redis
-- Secure WebSocket connections
+- Secure WebSocket connections (WSS)
 - Mobile-responsive design
 - Time controls for each player
 - Move validation and chess rules enforcement
+- Production-grade SSL/TLS encryption
 
 ## 🛠 Tech Stack
 - **Frontend**: SvelteKit, TypeScript
 - **Backend**: Node.js, Express
 - **Real-time**: Socket.IO
 - **State Management**: Redis
-- **Security**: Helmet, Rate Limiting
-- **Deployment**: Docker, HTTPS/SSL
+- **Security**: Helmet, Rate Limiting, Let's Encrypt SSL
+- **Deployment**: Docker, DigitalOcean
 
 ## 🏗 Architecture
 ```
@@ -77,11 +80,24 @@ chess-app/
 ```
 
 ## 🔐 Security
-- HTTPS/SSL encryption
+- HTTPS/SSL encryption with Let's Encrypt
+- Automatic SSL certificate renewal
+- HTTP to HTTPS redirection
+- Strict Transport Security (HSTS)
 - Rate limiting
 - Helmet security headers
-- WebSocket security
+- Secure WebSocket (WSS) connections
 - Input validation
+- Content Security Policy (CSP)
+
+## 🌐 Deployment
+The application is deployed at [chess.bidseek.dev](https://chess.bidseek.dev) using:
+- DigitalOcean Droplet
+- Docker Compose
+- Let's Encrypt SSL certificates
+- Nginx reverse proxy
+- Automatic container restart
+- Redis persistence
 
 ## 📝 License
 MIT License - See LICENSE file for details
