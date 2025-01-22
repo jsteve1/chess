@@ -4,10 +4,11 @@ services:
   app:
     build: .
     ports:
+      - "80:80"
       - "443:443"
     volumes:
-      - /etc/letsencrypt/live/chess.bidseek.dev/fullchain.pem:/app/certs/cert.crt:ro
-      - /etc/letsencrypt/live/chess.bidseek.dev/privkey.pem:/app/certs/cert.key:ro
+      - ./certs/cert.crt:/app/certs/cert.crt:ro
+      - ./certs/cert.key:/app/certs/cert.key:ro
     environment:
       - NODE_ENV=production
       - REDIS_URL=redis://redis:6379
