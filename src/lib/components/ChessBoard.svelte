@@ -1,10 +1,9 @@
-/**
+<script lang="ts">
+    /**
  * ChessBoard Component
  * Interactive chess board with move validation and piece movement
  * Supports multiple player roles and game states
  */
-
-<script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { Chess } from 'chess.js';
     import type { Square } from 'chess.js';
